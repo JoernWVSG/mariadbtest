@@ -1,38 +1,69 @@
 package com.schrader.mariadbtest;
 
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.validation.BindingResult;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 
-@RestController
-@RequestMapping("/user")
+@Controller
 public class MainController {
-    private UserRepository userRepository;
 
+    private final UserRepository userRepository;
+
+    @Autowired
     public MainController(UserRepository userRepository) {
         this.userRepository = userRepository;
     }
 
-    @GetMapping
-    public Iterable<User> getAllUsers() {
-        return userRepository.findAll();
+    @GetMapping("/index")
+    public String showUserList(Model model) {
+        model.addAttribute("users", userRepository.findAll());
+        return "index";
     }
 
-    @PostMapping()
-    public User addUser(@RequestBody User user) {
-        return this.userRepository.save(user);
+    @GetMapping("/signup")
+    public String showSignUpForm(User user) {
+        return "add-user";
     }
 
-    @PutMapping()
-    ResponseEntity<User> updateUser(@RequestBody User user) {
-        //return (userRepository.existsById(Long.valueOf((id))))
-        return (userRepository.existsById(user.getId()))
-                ? new ResponseEntity<User>(userRepository.save(user), HttpStatus.OK)
-                : new ResponseEntity<User>(userRepository.save(user), HttpStatus.CREATED);
+    @PostMapping("/adduser")
+    public String addUser(User user, BindingResult result, Model model) {
+        if (result.hasErrors()) {
+            return "add-user";
+        }
+
+        userRepository.save(user);
+        return "redirect:/index";
     }
 
-    @DeleteMapping("/{id}")
-    void deleteUser(@PathVariable String id) {
-        userRepository.deleteById(Long.valueOf(id));
+    @GetMapping("/edit/{id}")
+    public String showUpdateForm(@PathVariable("id") long id, Model model) {
+        User user = userRepository.findById(id).orElseThrow(() -> new IllegalArgumentException("Invalid user Id:" + id));
+        model.addAttribute("user", user);
+
+        return "update-user";
+    }
+
+    @PostMapping("/update/{id}")
+    public String updateUser(@PathVariable("id") long id, User user, BindingResult result, Model model) {
+        if (result.hasErrors()) {
+            user.setId(id);
+            return "update-user";
+        }
+
+        userRepository.save(user);
+
+        return "redirect:/index";
+    }
+
+    @GetMapping("/delete/{id}")
+    public String deleteUser(@PathVariable("id") long id, Model model) {
+        User user = userRepository.findById(id).orElseThrow(() -> new IllegalArgumentException("Invalid user Id:" + id));
+        userRepository.delete(user);
+
+        return "redirect:/index";
     }
 }
